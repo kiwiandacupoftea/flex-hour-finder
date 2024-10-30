@@ -61,32 +61,63 @@ def write_to_csv(tup):
         }
         writer.writerow(new_row)
 
-def find_markers(start_times):
+def get_markers(start_times):
     # determine markers for the thread for when to start finding travel times
     
     # create list of start times
-    split_starts = start_times.split(",")
-    # convert to list of ints
-    int_split_starts = [int(i) for i in split_starts]
-    # markers for start time are 1 hour prior (assume travel will be maximum of 1 hour)
-    start_markers = [x - 1 for x in int_split_starts]
-    # markers for end time are 8 hours after start time
-    end_markers = [x + 8 for x in int_split_starts]
+    start_times_str = sorted(start_times.split(","))
+    # Convert each time string into a datetime object for today
+    today = datetime.now().date()
+    desired_start = [
+        datetime.combine(today, datetime.strptime(time_str.strip(), "%H:%M").time())
+        for time_str in start_times_str
+    ]
+    # Create desired_end list by adding 8 hours to each start time
+    desired_end = [
+        start_time + timedelta(hours=8)
+        for start_time in desired_start
+    ]
 
-    print(start_markers)
-    print(end_markers)
+    return (desired_start, desired_end)
 
+def get_data(home, work, markers):
+    WAIT_TIME_SECONDS = 10 * 60  # 10 minutes in seconds
+    # target start time is 1 hour before first desired start time
+    target_start = datetime.combine(datetime.now().date(), datetime.strptime(markers[0][0], "%H:%M").time()) - timedelta(hours=1)
+
+    # wait until the target start time
+    while datetime.now() < target_start:
+        time.sleep(1)
+
+    # calculate travel time from home to work every 10 minutes
+    for start_time_str in markers[0]:
+        start_time = datetime.combine(datetime.now().date(), datetime.strptime(start_time_str, "%H:%M").time())
+        # only start calculations if within 1 hour of the start time
+        while datetime.now() < start_time:
+            if datetime.now() >= start_time - timedelta(hours=1):
+                travel_data = get_travel_time(home, work)
+                arrival_time = travel_data[2]
+                # assuming arrival_time is in "HH:MM" format
+                if arrival_time < start_time_str:
+                    write_to_csv(travel_data)
+                time.sleep(WAIT_TIME_SECONDS)
+
+    # calculate travel time from work to home for each desired end time
+    for end_time_str in markers[1]:
+        end_time = datetime.combine(datetime.now().date(), datetime.strptime(end_time_str, "%H:%M").time())
+        # wait until the desired leave time
+        while datetime.now() < end_time:
+            time.sleep(1)
+        # calculate travel time and write to CSV
+        travel_data = get_travel_time(work, home)
+        write_to_csv(travel_data)
 
 def main():
     home = input("Enter location of home: ")
     work = input("Enter location of work: ")
-    #start_times = input("Possible times to start a work shift (e.g. 7,8,9): ")
-    travel_data = get_travel_time(home, work)
-    #find_markers("7,8,9")
-    write_to_csv(travel_data)
-    #print(convert_to_min("1 hr 23 min"))
-    #print(get_travel_time(home, work))
-
+    start_times = input("Possible times to start a work shift (e.g. 7:00,7:30,8:00): ")
+    markers = get_markers(start_times)
+    get_data(home, work, markers)
 
 if __name__ == "__main__":
     # remove existing csv file
