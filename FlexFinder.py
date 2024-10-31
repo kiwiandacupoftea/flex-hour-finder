@@ -2,10 +2,9 @@
 # add location of chromedriver to Path
 
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-import time, csv, os, re, threading
+import time, csv, os, re
 
 FILENAME = "travel_times.csv"
 
@@ -28,7 +27,7 @@ def get_travel_time(start, end):
     travel_minutes = convert_to_min(fastest_time.get_text(strip=True))
     curr_time = datetime.now()
     arr_time = curr_time + timedelta(minutes=travel_minutes)
-    return (curr_time.strftime("%H:%M"), travel_minutes, arr_time.strftime("%H:%M"))
+    return (curr_time, travel_minutes, arr_time)
 
 def convert_to_min(time_str):
     # convert the time from Google maps 
@@ -54,16 +53,16 @@ def write_to_csv(tup):
     # append new row to file
     with open(FILENAME, 'a', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=headers)
+        # convert datetime objects to strings
         new_row = {
-            headers[0]: tup[0],
+            headers[0]: tup[0].strftime("%H:%M"),
             headers[1]: tup[1],
-            headers[2]: tup[2]
+            headers[2]: tup[2].strftime("%H:%M")
         }
         writer.writerow(new_row)
 
 def get_markers(start_times):
-    # determine markers for the thread for when to start finding travel times
-    
+    # determine markers for when to start finding travel times
     # create list of start times
     start_times_str = sorted(start_times.split(","))
     # Convert each time string into a datetime object for today
@@ -84,7 +83,6 @@ def get_data(home, work, markers):
     WAIT_TIME_SECONDS = 10 * 60  # 10 minutes in seconds
     # target start time is 1 hour before first desired start time
     target_start = markers[0][0] - timedelta(hours=1)
-
     # wait until the target start time
     while datetime.now() < target_start:
         time.sleep(1)
@@ -99,6 +97,8 @@ def get_data(home, work, markers):
                 # assuming arrival_time is in "HH:MM" format
                 if arrival_time < start_time:
                     write_to_csv(travel_data)
+                else: # stop checking travel times if passed the desired start time
+                    break 
                 time.sleep(WAIT_TIME_SECONDS)
     print("Calculated travel from home to work.")
     print("Calculating travel from work to home...")
