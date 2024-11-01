@@ -15,7 +15,7 @@ def get_travel_time(start, end):
     url = "https://www.google.com/maps/dir/" + start.replace(" ","+") + "/" + end.replace(" ","+")
     driver.get(url)
     # wait for page to fully load
-    time.sleep(5)
+    time.sleep(10)
     # parse page source for fastest time
     page_source = driver.page_source
     soup = BeautifulSoup(page_source, "html.parser")
@@ -23,11 +23,15 @@ def get_travel_time(start, end):
     fastest_time = soup.find("div", class_="Fk3sm fontHeadlineSmall delay-light")
     # close WebDriver
     driver.quit()
-    # return tuple of current time, arrival time, and time of fastest route
-    travel_minutes = convert_to_min(fastest_time.get_text(strip=True))
-    curr_time = datetime.now()
-    arr_time = curr_time + timedelta(minutes=travel_minutes)
-    return (curr_time, travel_minutes, arr_time)
+    # if request failed, return None
+    if fastest_time is None:
+        return None
+    else:
+        # return tuple of current time, arrival time, and time of fastest route
+        travel_minutes = convert_to_min(fastest_time.get_text(strip=True))
+        curr_time = datetime.now()
+        arr_time = curr_time + timedelta(minutes=travel_minutes)
+        return (curr_time, travel_minutes, arr_time)
 
 def convert_to_min(time_str):
     # convert the time from Google maps 
@@ -93,12 +97,13 @@ def get_data(home, work, markers):
         while datetime.now() < start_time:
             if datetime.now() >= start_time - timedelta(hours=1):
                 travel_data = get_travel_time(home, work)
-                arrival_time = travel_data[2]
-                # assuming arrival_time is in "HH:MM" format
-                if arrival_time < start_time:
-                    write_to_csv(travel_data)
-                else: # stop checking travel times if passed the desired start time
-                    break 
+                if travel_data is not None:
+                    arrival_time = travel_data[2]
+                    # assuming arrival_time is in "HH:MM" format
+                    if arrival_time < start_time:
+                        write_to_csv(travel_data)
+                    else: # stop checking travel times if passed the desired start time
+                        break 
                 time.sleep(WAIT_TIME_SECONDS)
     print("Calculated travel from home to work.")
     print("Calculating travel from work to home...")
