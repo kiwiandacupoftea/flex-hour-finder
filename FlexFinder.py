@@ -4,34 +4,49 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-import time, csv, os, re
+import time
+import csv
+import os
+import re
 
 FILENAME = "travel_times.csv"
 
 def get_travel_time(start, end):
-    # open WebDriver
-    driver = webdriver.Chrome()
-    # format url for Google Maps search
-    url = "https://www.google.com/maps/dir/" + start.replace(" ","+") + "/" + end.replace(" ","+")
-    driver.get(url)
-    # wait for page to fully load
-    time.sleep(10)
-    # parse page source for fastest time
-    page_source = driver.page_source
-    soup = BeautifulSoup(page_source, "html.parser")
-    # get time of fastest route
-    fastest_time = soup.find("div", class_="Fk3sm fontHeadlineSmall delay-light")
-    # close WebDriver
-    driver.quit()
-    # if request failed, return None
-    if fastest_time is None:
-        return None
-    else:
-        # return tuple of current time, arrival time, and time of fastest route
-        travel_minutes = convert_to_min(fastest_time.get_text(strip=True))
-        curr_time = datetime.now()
-        arr_time = curr_time + timedelta(minutes=travel_minutes)
-        return (curr_time, travel_minutes, arr_time)
+    try:
+        # open WebDriver
+        driver = webdriver.Chrome()
+        # format url for Google Maps search
+        url = "https://www.google.com/maps/dir/" + start.replace(" ","+") + "/" + end.replace(" ","+")
+        driver.get(url)
+        # wait for page to fully load
+        time.sleep(10)
+        # parse page source for fastest time
+        page_source = driver.page_source
+        soup = BeautifulSoup(page_source, "html.parser")
+        # get time of fastest route
+        fastest_time = soup.find("div", class_="Fk3sm fontHeadlineSmall delay-light")
+        # close WebDriver
+        driver.quit()
+        # if request failed, return None
+        if fastest_time is None:
+            print("fastest_time found: is None")
+            return None
+        else:
+            # return tuple of current time, arrival time, and time of fastest route
+            travel_minutes = convert_to_min(fastest_time.get_text(strip=True))
+            curr_time = datetime.now()
+            arr_time = curr_time + timedelta(minutes=travel_minutes)
+            if travel_minutes is None:
+                print("travel_minutes is None")
+            if curr_time is None:
+                print("curr_time is None")
+            if arr_time is None:
+                print("arr_time is None")
+            return (curr_time, travel_minutes, arr_time)
+    except Exception as e:
+            driver.quit()
+            print(f"Error in get_travel_time: {e}")
+            return None
 
 def convert_to_min(time_str):
     # convert the time from Google maps 
@@ -105,6 +120,8 @@ def get_data(home, work, markers):
                     else: # stop checking travel times if passed the desired start time
                         break 
                 time.sleep(WAIT_TIME_SECONDS)
+            else:
+                time.sleep(1) # reduces CPU usage
     print("Calculated travel from home to work.")
     print("Calculating travel from work to home...")
     # calculate travel time from work to home for each desired end time
@@ -114,7 +131,8 @@ def get_data(home, work, markers):
             time.sleep(1)
         # calculate travel time and write to CSV
         travel_data = get_travel_time(work, home)
-        write_to_csv(travel_data)
+        if travel_data is not None:
+            write_to_csv(travel_data)
     print("Ticker stopped.")
 
 def main():
