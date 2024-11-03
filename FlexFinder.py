@@ -62,23 +62,20 @@ def convert_to_min(time_str):
     total_minutes = hours * 60 + minutes
     return total_minutes
 
-def write_to_csv(tup):
-    headers = ['CurrentTime', 'DurationMinutes', 'ArrivalTime']
-    # create csv if does not exist
-    if not os.path.exists(FILENAME):
-        with open(FILENAME, 'w', newline='') as file:
-            writer = csv.DictWriter(file, fieldnames=headers)
-            writer.writeheader()
+def write_to_csv(tup, marker, label):
+    # headers = ['CurrentTime', 'DurationMinutes', 'ArrivalTime', 'Marker', 'Label']
+    
     # append new row to file
     with open(FILENAME, 'a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=headers)
-        # convert datetime objects to strings
-        new_row = {
-            headers[0]: tup[0].strftime("%H:%M"),
-            headers[1]: tup[1],
-            headers[2]: tup[2].strftime("%H:%M")
-        }
-        writer.writerow(new_row)
+        writer = csv.writer(file)
+        # format travel data
+        utup = list(tup)
+        data = [utup[0].strftime("%H:%M"), 
+                utup[1], 
+                utup[2].strftime("%H:%M"), 
+                marker.strftime("%H:%M"), 
+                label]
+        writer.writerow(data)
 
 def get_markers(start_times):
     # determine markers for when to start finding travel times
@@ -116,7 +113,7 @@ def get_data(home, work, markers):
                     arrival_time = travel_data[2]
                     # assuming arrival_time is in "HH:MM" format
                     if arrival_time < start_time:
-                        write_to_csv(travel_data)
+                        write_to_csv(travel_data, start_time, "s")
                     else: # stop checking travel times if passed the desired start time
                         break 
                 time.sleep(WAIT_TIME_SECONDS)
@@ -132,7 +129,7 @@ def get_data(home, work, markers):
         # calculate travel time and write to CSV
         travel_data = get_travel_time(work, home)
         if travel_data is not None:
-            write_to_csv(travel_data)
+            write_to_csv(travel_data, end_time, "e")
     print("Ticker stopped.")
 
 def main():
