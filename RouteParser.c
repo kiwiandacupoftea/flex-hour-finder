@@ -37,15 +37,15 @@ int time_in_minutes(const char* time) {
 int main(int argc, char* argv[]) {
 
     if (argc != 2) {
-        printf("Invalid number of arguments. Usage: .\\RouteParser.exe <path_of_csv>");
+        fprintf(stderr, "Invalid number of arguments. Usage: .\\RouteParser.exe <path_of_csv>");
         return 1;
     }
 
     FILE* fptr = fopen(argv[1], "r");
 
     if (fptr == NULL) {
-        printf("Invalid file path. Usage: .\\RouteParser.exe <path_of_csv>");
-        return 1;
+        fprintf(stderr, "Invalid file path. Usage: .\\RouteParser.exe <path_of_csv>");
+        return 2;
     }
 
     char line[MAX_LINE_LENGTH];
@@ -81,13 +81,15 @@ int main(int argc, char* argv[]) {
                 }
                 // if Route was not updated, add a new one
                 if (updated == 0) {
-                    // allocate memory for new Route
-                    routes = realloc(routes, (count + 1) * sizeof(Route));
-                    if (routes == NULL) {
-                        perror("Memory allocation failed");
+                    // attempt to allocate memory for new Route
+                    Route* temp = realloc(routes, (count + 1) * sizeof(Route));
+                    if (temp == NULL) {
+                        fprintf(stderr, "Memory reallocation failed\n");
+                        free(routes);
                         fclose(fptr);
-                        return 1;
+                        return 3;
                     }
+                    routes = temp;
                     // zero-initialize the newly allocated Route
                     memset(&routes[count], 0, sizeof(Route));
                     // store variables in Route object
