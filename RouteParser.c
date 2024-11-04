@@ -24,6 +24,16 @@ void printRoutes(Route* r, int count) {
     }
 }
 
+int time_in_minutes(const char* time) {
+    int hrs, mins;
+    if (sscanf(time, "%2d:%2d", &hrs, &mins) != 2) {
+        fprintf(stderr, "Invalid time format: %s\n", time);
+        return -1;
+    }
+
+    return hrs * 60 + mins;
+}
+
 int main(int argc, char* argv[]) {
 
     if (argc != 2) {
@@ -52,36 +62,97 @@ int main(int argc, char* argv[]) {
         // parse the travel data
         if (sscanf(line, "%5[^,],%d,%5[^,],%5[^,],%c", t1, &n, t2, t3, &c) == 5) {
 
-            // add new Route to array if a start time
+            // if travel is for a start time, either allocate new Route or compare to previous
             if (c == 's') {
-                // allocate memory for new Route
-                routes = realloc(routes, (count + 1) * sizeof(Route));
-                if (routes == NULL) {
-                    perror("Memory allocation failed");
-                    fclose(fptr);
-                    return 1;
+                // compare to current Routes, change flag if updated
+                int updated = 0;
+                for (int i = 0; i < count; i++) {
+                    // update the Route if the marker is the same
+                    int cur_marker = time_in_minutes(t3);
+                    int r_marker = time_in_minutes(routes[i].tsw);
+                    if (cur_marker == r_marker) {
+                        strcpy(routes[i].tlh, t1);
+                        routes[i].dh2w = n;
+                        strcpy(routes[i].taw, t2);
+                        strcpy(routes[i].tsw, t3);
+                        // set the flag
+                        updated = 1;
+                    }
                 }
-
-                // zero-initialize the newly allocated Route
-                memset(&routes[count], 0, sizeof(Route));
-
-                // store variables in Route object
-                strcpy(routes[count].tlh, t1);
-                routes[count].dh2w = n;
-                strcpy(routes[count].taw, t2);
-                strcpy(routes[count].tsw, t3);
+                // if Route was not updated, add a new one
+                if (updated == 0) {
+                    // allocate memory for new Route
+                    routes = realloc(routes, (count + 1) * sizeof(Route));
+                    if (routes == NULL) {
+                        perror("Memory allocation failed");
+                        fclose(fptr);
+                        return 1;
+                    }
+                    // zero-initialize the newly allocated Route
+                    memset(&routes[count], 0, sizeof(Route));
+                    // store variables in Route object
+                    strcpy(routes[count].tlh, t1);
+                    routes[count].dh2w = n;
+                    strcpy(routes[count].taw, t2);
+                    strcpy(routes[count].tsw, t3);
+                    // update count for Routes array
+                    count++;
+                }                              
             }
-
-            count++;
-        } else {
+            else if (c == 'e') {
+                // update Route with corresponding start time
+                for (int i = 0; i < count; i ++) {
+                    int cur_marker = time_in_minutes(t3);
+                    // find end marker by adding 8 hrs (480 minutes) to start marker
+                    int r_marker = time_in_minutes(routes[i].tsw) + 480;
+                    if (cur_marker == r_marker) {
+                        // update Route with travel going home
+                        strcpy(routes[i].tlw, t1);
+                        routes[i].dw2h = n;
+                    }
+                }
+            }
+        } 
+        else {
             fprintf(stderr, "Error parsing line: %s", line);
         }
     }
-
+    // close the file
     fclose(fptr);
 
     // print contents of array
-    printRoutes(routes, count);
+    //printRoutes(routes, count);
+
+    // find best route
+    if (count > 0) {
+        Route* best_route = NULL;
+        // find route with shortest travel time
+        for (int i = 0; i < count; i++) {
+            // check Route has a round trip travel time
+            if (routes[i].dh2w != 0 && routes[i].dw2h != 0) {
+                int cur_total = routes[i].dh2w + routes[i].dw2h;
+                // make best Route if one doesnt exist
+                if (best_route == NULL) {
+                    best_route = &routes[i];
+                }
+                else {
+                    int best_total = best_route->dh2w + best_route->dw2h;
+                    // give preference to Route that starts at a later time
+                    if (cur_total <= best_total) {
+                        best_route = &routes[i];
+                    }
+                }
+            }
+        }
+
+        if (best_route != NULL) {
+            printf("Best route: %s start time, ~%dmin to work, ~%dmin home, approx. round trip of %d minutes\n", 
+                best_route->tsw, best_route->dh2w, best_route->dw2h, best_route->dh2w + best_route->dw2h);
+        }
+    }
+    else {
+        printf("No routes found\n");
+    }
 
     // deallocate memory for array
     free(routes);
