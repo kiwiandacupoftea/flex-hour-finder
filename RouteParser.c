@@ -125,7 +125,8 @@ int main(int argc, char* argv[]) {
     // print contents of array
     //printRoutes(routes, count);
 
-    // find best route
+    // find best route, set flag if found
+    int route_found = 0;
     if (count > 0) {
         Route* best_route = NULL;
         // find route with shortest travel time
@@ -150,10 +151,13 @@ int main(int argc, char* argv[]) {
         if (best_route != NULL) {
             printf("Best route: %s start time, ~%dmin to work, ~%dmin home, approx. round trip of %d minutes\n", 
                 best_route->tsw, best_route->dh2w, best_route->dw2h, best_route->dh2w + best_route->dw2h);
+            route_found = 1;
         }
     }
-    else {
-        printf("No routes found\n");
+
+    // print message if route not found
+    if (!route_found) {
+        printf("Route not found.\n");
     }
 
     // deallocate memory for array
